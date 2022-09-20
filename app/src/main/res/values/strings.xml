@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Check Certificate</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="home_hint">Select an application to check whether its certificate matches your certificate</string>
+    <string name="match_your_certificate">match your certificate</string>
+    <string name="dosnt_match_your_certificate">doesn\'t match your certificate</string>
+</resources>
