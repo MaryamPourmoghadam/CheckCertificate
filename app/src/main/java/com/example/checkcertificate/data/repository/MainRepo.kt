@@ -9,7 +9,7 @@ import javax.inject.Singleton
 
 @Singleton
 class MainRepo  @Inject constructor(@ApplicationContext val context: Context){
-    fun getMyCert():Certificate{
+    suspend fun getMyCert():Certificate{
         val inputstream= context.assets.open("mp.crt")
         val cf = CertificateFactory.getInstance("X509")
         return cf.generateCertificate(inputstream)

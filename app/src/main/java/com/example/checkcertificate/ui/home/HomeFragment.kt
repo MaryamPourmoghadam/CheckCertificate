@@ -8,14 +8,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.example.checkcertificate.databinding.FragmentHomeBinding
 import dagger.hilt.android.AndroidEntryPoint
-import java.security.cert.Certificate
 
 @AndroidEntryPoint
 class HomeFragment : Fragment() {
     private lateinit var binding: FragmentHomeBinding
     private val homeViewModel: HomeViewModel by viewModels()
     private lateinit var appListAdapter: AppListAdapter
-    private var appCert: Certificate? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -28,22 +26,16 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         appListAdapter = AppListAdapter {
-            appCert = homeViewModel.getAppCertificate(it)
-            val result = homeViewModel.areEqualCertificate(appCert!!, homeViewModel.myCertificate)
-            homeViewModel.showResult(result,view)
-
+            homeViewModel.appCert.value = homeViewModel.getAppCertificate(it)
         }
         appListAdapter.submitList(homeViewModel.installedApplicationList)
         binding.rvApps.adapter = appListAdapter
-        //doesnt observe
-        homeViewModel.myCert.observe(viewLifecycleOwner) {
-                if ( appCert!=null) {
-                    val result = homeViewModel.areEqualCertificate(appCert!!, it)
-                    homeViewModel.showResult(result, view)
-                    appCert=null
-                }
 
-
+        homeViewModel.appCert.observe(viewLifecycleOwner) {
+            if (it!=null){
+                val result = homeViewModel.areEqualCertificate(it, homeViewModel.myCert)
+                homeViewModel.showResult(result, view)
+            }
         }
     }
 

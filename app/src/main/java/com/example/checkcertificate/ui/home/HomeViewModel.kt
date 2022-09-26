@@ -26,8 +26,8 @@ class HomeViewModel @Inject constructor(
     private val repository: MainRepo,
     application: Application
 ) : AndroidViewModel(application) {
-    val myCert = MutableLiveData<Certificate>()
-    lateinit var myCertificate:Certificate
+    lateinit var myCert : Certificate
+    val appCert = MutableLiveData<Certificate?>()
     private lateinit var packageManager: PackageManager
     lateinit var installedApplicationList: List<ApplicationInfo>
 
@@ -37,12 +37,10 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun getMyCertificate() {
-        viewModelScope.launch (Dispatchers.IO){
-            myCert.postValue(repository.getMyCert())
-            myCertificate=repository.getMyCert()
+        viewModelScope.launch(Dispatchers.IO) {
+            myCert=repository.getMyCert()
         }
     }
-
 
 
     private fun getInstalledAppList() {
@@ -79,6 +77,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun areEqualCertificate(appCert: Certificate, myCert: Certificate): Boolean {
+        this.appCert.value=null
         return appCert == myCert
     }
 
@@ -96,6 +95,7 @@ class HomeViewModel @Inject constructor(
                 if (result) this.setBackgroundTint(Color.GREEN) else this.setBackgroundTint(Color.RED)
             }
             .show()
+
     }
 
 }
