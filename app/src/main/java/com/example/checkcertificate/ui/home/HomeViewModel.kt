@@ -15,10 +15,14 @@ import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.ByteArrayInputStream
+import java.io.*
+import java.security.KeyStore
+import java.security.KeyStoreException
+import java.security.NoSuchAlgorithmException
 import java.security.cert.Certificate
 import java.security.cert.CertificateException
 import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
 import javax.inject.Inject
 
 @HiltViewModel
@@ -26,19 +30,21 @@ class HomeViewModel @Inject constructor(
     private val repository: MainRepo,
     application: Application
 ) : AndroidViewModel(application) {
-    lateinit var myCert : Certificate
     val appCert = MutableLiveData<Certificate?>()
+    val localCertificateList: ArrayList<Certificate> = arrayListOf()
     private lateinit var packageManager: PackageManager
+     lateinit var myCert: Certificate
     lateinit var installedApplicationList: List<ApplicationInfo>
 
     init {
         getMyCertificate()
         getInstalledAppList()
+        getLocalCertificates()
     }
 
     private fun getMyCertificate() {
         viewModelScope.launch(Dispatchers.IO) {
-            myCert=repository.getMyCert()
+            myCert = repository.getMyCert()
         }
     }
 
@@ -76,26 +82,91 @@ class HomeViewModel @Inject constructor(
         return certificate
     }
 
-    fun areEqualCertificate(appCert: Certificate, myCert: Certificate): Boolean {
-        this.appCert.value=null
-        return appCert == myCert
+    private fun isTrustCertificate(selectedCertificate: Certificate): Boolean {
+        this.appCert.value = null
+        for (cert in localCertificateList)
+            if (cert.publicKey == selectedCertificate.publicKey) return true
+        return false
     }
 
-    fun showResult(result: Boolean, view: View) {
-        val text =
-            if (result) getApplication<Application>().getString(R.string.match_your_certificate) else getApplication<Application>().getString(
-                R.string.dosnt_match_your_certificate
-            )
+    private fun isMyCertificate(selectedCertificate: Certificate): Boolean {
+        this.appCert.value = null
+        return selectedCertificate.publicKey == myCert.publicKey
+    }
+
+    fun showResult(selectedCertificate: Certificate, view: View) {
+        val text: String =
+            if (isTrustCertificate(selectedCertificate)) {
+                "This application has trust certificate of google"
+            } else if (isMyCertificate(selectedCertificate)) {
+                "This application has custom certificate"
+            } else {
+                "This application doesn't have valid certificate"
+            }
         Snackbar.make(
             view, text,
             Snackbar.LENGTH_LONG
         ).setAnimationMode(Snackbar.ANIMATION_MODE_FADE)
-            .setTextColor(Color.BLACK)
-            .apply {
-                if (result) this.setBackgroundTint(Color.GREEN) else this.setBackgroundTint(Color.RED)
-            }
+            .setTextColor(Color.BLACK).setBackgroundTint(Color.YELLOW)
             .show()
 
     }
+
+    private fun getLocalCertificates() {
+        try {
+            val ks = KeyStore.getInstance("AndroidCAStore")
+            if (ks != null) {
+                ks.load(null, null)
+                val aliases = ks.aliases()
+                while (aliases.hasMoreElements()) {
+                    val alias = aliases.nextElement()
+                    val cert = ks.getCertificate(alias)
+                    localCertificateList.add(cert)
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } catch (e: KeyStoreException) {
+            e.printStackTrace()
+        } catch (e: NoSuchAlgorithmException) {
+            e.printStackTrace()
+        } catch (e: CertificateException) {
+            e.printStackTrace()
+        }
+    }
+    /*fun isApk(file: File?): Boolean {
+        val fis: FileInputStream?
+        val zipIs: ZipInputStream?
+        var zEntry: ZipEntry?
+        val dexFile = "classes.dex"
+        val manifestFile = "AndroidManifest.xml"
+        var hasDex = false
+        var hasManifest = false
+        if (file == null)
+            return false
+        try {
+            fis = FileInputStream(file)
+            zipIs = ZipInputStream(BufferedInputStream(fis))
+            while (zipIs.nextEntry.also { zEntry = it } != null) {
+                if (zEntry?.name.equals(dexFile, ignoreCase = true)) {
+                    hasDex = true
+                } else if (zEntry?.name.equals(manifestFile, ignoreCase = true)) {
+                    hasManifest = true
+                }
+                if (hasDex && hasManifest) {
+                    zipIs.close()
+                    fis.close()
+                    return true
+                }
+            }
+            zipIs.close()
+            fis.close()
+        } catch (e: FileNotFoundException) {
+            return false
+        } catch (e: IOException) {
+            return false
+        }
+        return false
+    }*/
 
 }
