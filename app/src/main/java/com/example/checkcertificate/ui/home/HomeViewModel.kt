@@ -9,7 +9,6 @@ import android.view.View
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.example.checkcertificate.R
 import com.example.checkcertificate.data.repository.MainRepo
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +21,6 @@ import java.security.NoSuchAlgorithmException
 import java.security.cert.Certificate
 import java.security.cert.CertificateException
 import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
 import javax.inject.Inject
 
 @HiltViewModel
@@ -31,7 +29,7 @@ class HomeViewModel @Inject constructor(
     application: Application
 ) : AndroidViewModel(application) {
     val appCert = MutableLiveData<Certificate?>()
-    val localCertificateList: ArrayList<Certificate> = arrayListOf()
+    val localCACertificateList: ArrayList<Certificate> = arrayListOf()
     private lateinit var packageManager: PackageManager
      lateinit var myCert: Certificate
     lateinit var installedApplicationList: List<ApplicationInfo>
@@ -39,7 +37,7 @@ class HomeViewModel @Inject constructor(
     init {
         getMyCertificate()
         getInstalledAppList()
-        getLocalCertificates()
+        getLocalCACertificates()
     }
 
     private fun getMyCertificate() {
@@ -83,9 +81,6 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun isTrustCertificate(selectedCertificate: Certificate): Boolean {
-        this.appCert.value = null
-        for (cert in localCertificateList)
-            if (cert.publicKey == selectedCertificate.publicKey) return true
         return false
     }
 
@@ -94,14 +89,14 @@ class HomeViewModel @Inject constructor(
         return selectedCertificate.publicKey == myCert.publicKey
     }
 
-    fun showResult(selectedCertificate: Certificate, view: View) {
+    fun showResult(selectedApp:ApplicationInfo, view: View) {
         val text: String =
-            if (isTrustCertificate(selectedCertificate)) {
+            if (installedFromPlayStore(selectedApp)) {
                 "This application has trust certificate of google"
-            } else if (isMyCertificate(selectedCertificate)) {
+            } else if (isMyCertificate(getAppCertificate(selectedApp))) {
                 "This application has custom certificate"
             } else {
-                "This application doesn't have valid certificate"
+                "Maybe this is system app or signed by unknown publisher"
             }
         Snackbar.make(
             view, text,
@@ -112,7 +107,7 @@ class HomeViewModel @Inject constructor(
 
     }
 
-    private fun getLocalCertificates() {
+    private fun getLocalCACertificates() {
         try {
             val ks = KeyStore.getInstance("AndroidCAStore")
             if (ks != null) {
@@ -121,7 +116,7 @@ class HomeViewModel @Inject constructor(
                 while (aliases.hasMoreElements()) {
                     val alias = aliases.nextElement()
                     val cert = ks.getCertificate(alias)
-                    localCertificateList.add(cert)
+                    localCACertificateList.add(cert)
                 }
             }
         } catch (e: IOException) {
@@ -133,6 +128,15 @@ class HomeViewModel @Inject constructor(
         } catch (e: CertificateException) {
             e.printStackTrace()
         }
+    }
+
+      private fun installedFromPlayStore(app:ApplicationInfo):Boolean{
+        // A list with valid installers package name
+        val validInstallers: List<String> = ArrayList(listOf("com.android.vending", "com.google.android.feedback"))
+        // The package name of the app that has installed your app
+        val installer=packageManager.getInstallerPackageName(app.packageName)
+            // true if your app has been downloaded from Play Store
+       return installer != null && validInstallers.contains(installer)
     }
     /*fun isApk(file: File?): Boolean {
         val fis: FileInputStream?
