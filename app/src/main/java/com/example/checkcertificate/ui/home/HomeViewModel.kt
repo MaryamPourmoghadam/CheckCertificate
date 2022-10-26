@@ -7,17 +7,14 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.view.View
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.example.checkcertificate.R
 import com.example.checkcertificate.data.repository.MainRepo
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.*
-import java.security.KeyStore
-import java.security.KeyStoreException
-import java.security.NoSuchAlgorithmException
+import java.io.ByteArrayInputStream
 import java.security.cert.Certificate
 import java.security.cert.CertificateException
 import java.security.cert.CertificateFactory
@@ -28,16 +25,16 @@ class HomeViewModel @Inject constructor(
     private val repository: MainRepo,
     application: Application
 ) : AndroidViewModel(application) {
-    val appCert = MutableLiveData<Certificate?>()
-    val localCACertificateList: ArrayList<Certificate> = arrayListOf()
+    //val appCert = MutableLiveData<Certificate?>()
+    // private val localCACertificateList: ArrayList<Certificate> = arrayListOf()
     private lateinit var packageManager: PackageManager
-     lateinit var myCert: Certificate
+    private lateinit var myCert: Certificate
     lateinit var installedApplicationList: List<ApplicationInfo>
 
     init {
         getMyCertificate()
         getInstalledAppList()
-        getLocalCACertificates()
+        //getLocalCACertificates()
     }
 
     private fun getMyCertificate() {
@@ -53,7 +50,7 @@ class HomeViewModel @Inject constructor(
             packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
     }
 
-    fun getAppCertificate(appInfo: ApplicationInfo): Certificate {
+    private fun getAppCertificate(appInfo: ApplicationInfo): Certificate {
         lateinit var packageInfo: PackageInfo
         lateinit var certificateFactory: CertificateFactory
         lateinit var certificate: Certificate
@@ -80,24 +77,28 @@ class HomeViewModel @Inject constructor(
         return certificate
     }
 
-    private fun isTrustCertificate(selectedCertificate: Certificate): Boolean {
-        return false
-    }
 
     private fun isMyCertificate(selectedCertificate: Certificate): Boolean {
-        this.appCert.value = null
+        //this.appCert.value = null
         return selectedCertificate.publicKey == myCert.publicKey
     }
 
-    fun showResult(selectedApp:ApplicationInfo, view: View) {
-        val text: String =
-            if (installedFromPlayStore(selectedApp)) {
-                "This application has trust certificate of google"
-            } else if (isMyCertificate(getAppCertificate(selectedApp))) {
-                "This application has custom certificate"
-            } else {
-                "Maybe this is system app or signed by unknown publisher"
+    fun showResult(selectedApp: ApplicationInfo, view: View) {
+        val text: String = when (getAppInstaller(selectedApp)) {
+            "play store" -> {
+                getApplication<Application>().getString(R.string.trusted_in_play_store)
             }
+            "galaxy store" -> {
+                getApplication<Application>().getString(R.string.trusted_in_galaxy_store)
+            }
+            else -> {
+                if (isMyCertificate(getAppCertificate(selectedApp))) {
+                    getApplication<Application>().getString(R.string.trusted_in_custom_cert)
+                } else {
+                    getApplication<Application>().getString(R.string.system_app_or_not_trusted)
+                }
+            }
+        }
         Snackbar.make(
             view, text,
             Snackbar.LENGTH_LONG
@@ -107,7 +108,28 @@ class HomeViewModel @Inject constructor(
 
     }
 
-    private fun getLocalCACertificates() {
+
+    private fun getAppInstaller(app: ApplicationInfo): String {
+        // A list with valid installers package name
+        val playStoreInstallerPackageName = listOf(
+            //for play store
+            "com.android.vending",
+            "com.google.android.feedback"
+        )
+        val galaxyStoreInstallerPackageName = "com.sec.android.app.samsungapps"
+        val installer = packageManager.getInstallerPackageName(app.packageName)
+        if (installer != null) {
+            if (playStoreInstallerPackageName.contains(installer))
+                return "play store"
+            if (galaxyStoreInstallerPackageName.contains(installer))
+                return "galaxy store"
+        }
+        return ""
+    }
+
+
+}
+/* private fun getLocalCACertificates() {
         try {
             val ks = KeyStore.getInstance("AndroidCAStore")
             if (ks != null) {
@@ -129,48 +151,4 @@ class HomeViewModel @Inject constructor(
             e.printStackTrace()
         }
     }
-
-      private fun installedFromPlayStore(app:ApplicationInfo):Boolean{
-        // A list with valid installers package name
-        val validInstallers: List<String> = ArrayList(listOf("com.android.vending", "com.google.android.feedback"))
-        // The package name of the app that has installed your app
-        val installer=packageManager.getInstallerPackageName(app.packageName)
-            // true if your app has been downloaded from Play Store
-       return installer != null && validInstallers.contains(installer)
-    }
-    /*fun isApk(file: File?): Boolean {
-        val fis: FileInputStream?
-        val zipIs: ZipInputStream?
-        var zEntry: ZipEntry?
-        val dexFile = "classes.dex"
-        val manifestFile = "AndroidManifest.xml"
-        var hasDex = false
-        var hasManifest = false
-        if (file == null)
-            return false
-        try {
-            fis = FileInputStream(file)
-            zipIs = ZipInputStream(BufferedInputStream(fis))
-            while (zipIs.nextEntry.also { zEntry = it } != null) {
-                if (zEntry?.name.equals(dexFile, ignoreCase = true)) {
-                    hasDex = true
-                } else if (zEntry?.name.equals(manifestFile, ignoreCase = true)) {
-                    hasManifest = true
-                }
-                if (hasDex && hasManifest) {
-                    zipIs.close()
-                    fis.close()
-                    return true
-                }
-            }
-            zipIs.close()
-            fis.close()
-        } catch (e: FileNotFoundException) {
-            return false
-        } catch (e: IOException) {
-            return false
-        }
-        return false
-    }*/
-
-}
+*/

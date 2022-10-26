@@ -2,4 +2,8 @@
     <string name="app_name">Check Certificate</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="home_hint">Select an application to check whether it is signed by play store or has custom certificate</string>
+    <string name="trusted_in_play_store">This application has trusted certificate from play store</string>
+    <string name="trusted_in_galaxy_store">This application has trusted certificate from galaxy store</string>
+    <string name="trusted_in_custom_cert">This application signed by your custom certificate</string>
+    <string name="system_app_or_not_trusted">Maybe this is system app or signed by unknown publisher</string>
 </resources>
